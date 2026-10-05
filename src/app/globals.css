@@ -1,0 +1,39 @@
+@import "tailwindcss";
+
+@theme {
+  --color-surface-0: #080a0e;
+  --color-surface-1: #101319;
+  --color-surface-2: #171b23;
+  --color-line: #232936;
+  --color-ink: #e8ecf3;
+  --color-ink-muted: #97a1b3;
+  --color-accent: #f0a828;
+  --color-accent-dim: #7a5512;
+
+  --font-sans: ui-sans-serif, system-ui, -apple-system, "Segoe UI", "Noto Sans SC",
+    "PingFang SC", "Microsoft YaHei", sans-serif;
+}
+
+@layer base {
+  html {
+    color-scheme: dark;
+  }
+
+  body {
+    font-family: var(--font-sans);
+    background-color: var(--color-surface-0);
+    color: var(--color-ink);
+  }
+
+  ::selection {
+    background-color: var(--color-accent);
+    color: #0b0d10;
+  }
+}
+
+@layer utilities {
+  .scrollbar-thin {
+    scrollbar-width: thin;
+    scrollbar-color: var(--color-line) transparent;
+  }
+}

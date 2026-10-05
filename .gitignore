@@ -39,3 +39,6 @@ yarn-error.log*
 .idea
 .vscode/*
 !.vscode/extensions.json
+
+# local AI assistant workspace (memory, caches)
+.workbuddy-ai/

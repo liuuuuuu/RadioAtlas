@@ -5,31 +5,38 @@
  * Reference: https://api.radio-browser.info/ (free, no API key, CC0-ish community data)
  */
 
-export interface Station {
+/**
+ * The minimum a station must expose to be playable and rendered in the player
+ * bar. The map endpoint ships hundreds of markers, so it sends only these
+ * fields rather than full `Station` records.
+ */
+export interface PlayableStation {
   stationuuid: string;
   name: string;
   /** Original stream URL as submitted to the directory. */
   url: string;
   /** Stream URL after following redirects — prefer this for playback. */
   url_resolved: string;
-  homepage: string;
-  favicon: string;
-  /** Comma-separated genre tags, e.g. "jazz,public radio". */
-  tags: string;
   country: string;
   /** ISO 3166-1 alpha-2, e.g. "CN". */
   countrycode: string;
-  state: string;
-  language: string;
-  languagecodes: string;
-  votes: number;
   /** "MP3" | "AAC" | "OGG" | "UNKNOWN" ... */
   codec: string;
   /** kbps, 0 when unknown. */
   bitrate: number;
   /** 1 when the stream is HLS (m3u8) and needs a JS player. */
   hls: number;
-  /** 1 when the last automated health check succeeded. */
+  /** Comma-separated genre tags, e.g. "jazz,public radio". */
+  tags: string;
+}
+
+export interface Station extends PlayableStation {
+  homepage: string;
+  favicon: string;
+  state: string;
+  language: string;
+  languagecodes: string;
+  votes: number;
   lastcheckok: number;
   lastchecktime: string;
   clickcount: number;

@@ -1,4 +1,4 @@
-import type { Station } from "./radio-browser/types";
+import type { PlayableStation } from "./radio-browser/types";
 
 /** Split the directory's comma-separated tag string into a clean list. */
 export function parseTags(tags: string, limit = 3): string[] {
@@ -29,10 +29,10 @@ export function formatCount(value: number): string {
  * Prefers the redirect-resolved URL and flags streams the browser will refuse
  * to load from an HTTPS page.
  */
-export function resolveStreamUrl(station: Station): string {
+export function resolveStreamUrl(station: PlayableStation): string {
   return station.url_resolved || station.url;
 }
 
-export function isInsecureStream(station: Station): boolean {
+export function isInsecureStream(station: PlayableStation): boolean {
   return resolveStreamUrl(station).startsWith("http://");
 }

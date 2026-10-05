@@ -17,17 +17,17 @@ import {
   type HlsHandle,
 } from "@/lib/audio/hls-loader";
 import { resolveStreamUrl } from "@/lib/format";
-import type { Station } from "@/lib/radio-browser/types";
+import type { PlayableStation } from "@/lib/radio-browser/types";
 
 export type PlaybackStatus = "idle" | "loading" | "playing" | "paused" | "error";
 
 export interface AudioPlayerValue {
-  station: Station | null;
+  station: PlayableStation | null;
   status: PlaybackStatus;
   error: string | null;
   volume: number;
   muted: boolean;
-  play: (station: Station) => void;
+  play: (station: PlayableStation) => void;
   toggle: () => void;
   stop: () => void;
   setVolume: (volume: number) => void;
@@ -55,7 +55,7 @@ export function AudioPlayerProvider({ children }: { children: ReactNode }) {
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const hlsRef = useRef<HlsHandle | null>(null);
 
-  const [station, setStation] = useState<Station | null>(null);
+  const [station, setStation] = useState<PlayableStation | null>(null);
   const [status, setStatus] = useState<PlaybackStatus>("idle");
   const [error, setError] = useState<string | null>(null);
   const [volume, setVolumeState] = useState(0.8);
@@ -119,7 +119,7 @@ export function AudioPlayerProvider({ children }: { children: ReactNode }) {
   }, [teardownStream]);
 
   const play = useCallback(
-    async (next: Station) => {
+    async (next: PlayableStation) => {
       const audio = audioRef.current;
       if (!audio) return;
 

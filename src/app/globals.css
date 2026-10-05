@@ -37,3 +37,42 @@
     scrollbar-color: var(--color-line) transparent;
   }
 }
+
+/*
+ * World map primitives.
+ * Stroke widths are divided by the current zoom (published as --atlas-stroke on
+ * the <svg>) so borders stay a constant on-screen thickness without React
+ * having to rebuild the 177 country paths on every zoom step.
+ */
+@layer components {
+  .atlas-country {
+    stroke: #2c3444;
+    stroke-width: calc(0.35 * var(--atlas-stroke, 1));
+    transition: stroke 120ms ease;
+  }
+
+  .atlas-country[data-selectable="true"] {
+    cursor: pointer;
+  }
+
+  .atlas-country[data-hovered="true"] {
+    stroke: #f5c56b;
+    stroke-width: calc(0.9 * var(--atlas-stroke, 1));
+  }
+
+  .atlas-country[data-selected="true"] {
+    stroke: var(--color-accent);
+    stroke-width: calc(1.6 * var(--atlas-stroke, 1));
+  }
+
+  .atlas-marker {
+    fill: var(--color-accent);
+    fill-opacity: 0.72;
+    cursor: pointer;
+    transition: fill-opacity 120ms ease;
+  }
+
+  .atlas-marker:hover {
+    fill-opacity: 1;
+  }
+}

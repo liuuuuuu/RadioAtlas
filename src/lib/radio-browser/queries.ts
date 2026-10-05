@@ -15,12 +15,22 @@ import type {
 
 export const DEFAULT_STATION_LIMIT = 60;
 
+/**
+ * Default ranking is `votes`, not `clickcount`.
+ *
+ * The directory's click counter is trivially inflated — at the time of writing
+ * the global click ranking is dominated by a handful of Nigerian stations with
+ * 40-470 votes but 4000-6000 clicks. Votes require a deliberate user action on
+ * radio-browser.info and track real popularity far more closely.
+ */
+export const DEFAULT_STATION_ORDER = "votes" as const;
+
 export function searchStations(
   params: StationSearchParams = {},
-  options?: { revalidate?: number },
+  options?: { revalidate?: number; timeoutMs?: number },
 ): Promise<Station[]> {
   const merged: StationSearchParams = {
-    order: "clickcount",
+    order: DEFAULT_STATION_ORDER,
     reverse: true,
     hideBroken: true,
     limit: DEFAULT_STATION_LIMIT,
@@ -29,23 +39,21 @@ export function searchStations(
 
   return radioFetch<Station[]>("/json/stations/search", stationQueryParams(merged), {
     revalidate: options?.revalidate ?? 300,
+    timeoutMs: options?.timeoutMs,
   });
 }
 
+/**
+ * Highest community-voted stations.
+ * Deliberately not `/json/stations/topclick`, whose ranking is click-farmed.
+ */
 export function getTopStations(limit = DEFAULT_STATION_LIMIT): Promise<Station[]> {
-  return radioFetch<Station[]>(
-    "/json/stations/topclick",
-    { limit, hidebroken: true },
-    { revalidate: 300 },
-  );
+  return searchStations({ order: DEFAULT_STATION_ORDER, limit });
 }
 
+/** Recently rising by clicks — noisier than votes, but the only trend signal offered. */
 export function getTrendingStations(limit = DEFAULT_STATION_LIMIT): Promise<Station[]> {
-  return radioFetch<Station[]>(
-    "/json/stations/search",
-    stationQueryParams({ order: "clicktrend", reverse: true, hideBroken: true, limit }),
-    { revalidate: 300 },
-  );
+  return searchStations({ order: "clicktrend", limit });
 }
 
 export function getStationsByCountryCode(

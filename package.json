@@ -1,6 +1,6 @@
 {
   "name": "radioatlas",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "private": true,
   "description": "Explore and listen to live radio stations from around the world.",
   "homepage": "https://github.com/liuuuuuu/RadioAtlas",
@@ -16,9 +16,12 @@
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "test:watch": "vitest",
+    "geo:build": "node scripts/build-geo-data.mjs",
+    "verify:map": "node scripts/verify-map-flow.mjs",
     "verify": "npm run typecheck && npm run lint && npm run test && npm run build"
   },
   "dependencies": {
+    "d3-geo": "^3.1.1",
     "hls.js": "^1.7.3",
     "next": "^16.3.8",
     "react": "^19.3.0",
@@ -29,14 +32,19 @@
     "@testing-library/dom": "^10.4.1",
     "@testing-library/jest-dom": "^6.9.1",
     "@testing-library/react": "^16.3.3",
+    "@types/d3-geo": "^3.1.1",
     "@types/node": "^26.6.4",
     "@types/react": "^19.3.0",
     "@types/react-dom": "^19.3.0",
+    "@types/topojson-client": "^3.1.5",
     "eslint": "^9.39.5",
     "eslint-config-next": "^16.3.8",
     "jsdom": "^30.1.2",
     "tailwindcss": "^4.3.3",
+    "topojson-client": "^3.1.0",
     "typescript": "^5.9.3",
-    "vitest": "^5.0.3"
+    "vitest": "^5.0.3",
+    "world-atlas": "^2.0.2",
+    "world-countries": "^5.1.0"
   }
 }

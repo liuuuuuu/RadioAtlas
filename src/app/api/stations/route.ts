@@ -19,7 +19,7 @@ function clampInt(raw: string | null, fallback: number, min: number, max: number
 }
 
 function parseOrder(raw: string | null): StationOrder {
-  return STATION_ORDERS.includes(raw as StationOrder) ? (raw as StationOrder) : "clickcount";
+  return STATION_ORDERS.includes(raw as StationOrder) ? (raw as StationOrder) : "votes";
 }
 
 export async function GET(request: Request) {

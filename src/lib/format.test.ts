@@ -4,8 +4,11 @@ import {
   formatCodec,
   formatCount,
   isInsecureStream,
+  isRelayed,
   parseTags,
+  playbackUrl,
   resolveStreamUrl,
+  STREAM_PROXY_ENABLED,
 } from "./format";
 import type { Station } from "./radio-browser/types";
 
@@ -77,8 +80,24 @@ describe("stream resolution", () => {
     expect(resolveStreamUrl(makeStation({ url_resolved: "" }))).toBe("http://example.com/a.mp3");
   });
 
-  it("flags plain-HTTP streams that HTTPS pages cannot load", () => {
-    expect(isInsecureStream(makeStation({ url_resolved: "http://x.test/a.mp3" }))).toBe(true);
+  it("sends HTTPS streams straight to the audio element", () => {
+    const station = makeStation();
+    expect(playbackUrl(station)).toBe("https://example.com/a.mp3");
+    expect(isRelayed(station)).toBe(false);
+  });
+
+  it("relays plain-HTTP streams through /api/stream", () => {
+    const station = makeStation({ url_resolved: "http://x.test/a.mp3" });
+    expect(playbackUrl(station)).toBe(
+      "/api/stream?uuid=00000000-0000-0000-0000-000000000000",
+    );
+    expect(isRelayed(station)).toBe(true);
+  });
+
+  it("only reports an insecure stream when the relay is disabled", () => {
+    // The relay is on by default, so HTTP streams are playable and not flagged.
+    expect(STREAM_PROXY_ENABLED).toBe(true);
+    expect(isInsecureStream(makeStation({ url_resolved: "http://x.test/a.mp3" }))).toBe(false);
     expect(isInsecureStream(makeStation())).toBe(false);
   });
 });

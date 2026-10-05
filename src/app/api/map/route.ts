@@ -77,6 +77,7 @@ export async function GET(request: Request) {
             codec: station.codec,
             bitrate: station.bitrate,
             tags: station.tags,
+            favicon: station.favicon || undefined,
           } satisfies StationMarker,
         ];
       });

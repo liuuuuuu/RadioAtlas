@@ -1,16 +1,18 @@
 "use client";
 
 import { useAudioPlayer } from "./AudioPlayerProvider";
-import { formatBitrate, formatCodec, parseTags } from "@/lib/format";
+import { formatBitrate, formatCodec, isRelayed, parseTags } from "@/lib/format";
 
 export function PlayerBar() {
-  const { station, status, error, volume, muted, toggle, stop, setVolume, toggleMute } =
+  const { station, status, error, volume, muted, toggle, stop, retry, setVolume, toggleMute } =
     useAudioPlayer();
 
   if (!station) return null;
 
   const isPlaying = status === "playing";
+  const isFailed = status === "error";
   const tags = parseTags(station.tags, 2);
+  const relayed = isRelayed(station);
 
   return (
     <div className="fixed inset-x-0 bottom-0 z-50 border-t border-line bg-surface-1/95 backdrop-blur">
@@ -41,9 +43,33 @@ export function PlayerBar() {
         </div>
 
         {error && (
-          <p className="hidden max-w-xs truncate text-xs text-red-400 sm:block" role="alert">
+          <p
+            className={`hidden max-w-xs truncate text-xs sm:block ${
+              isFailed ? "text-red-400" : "text-ink-muted"
+            }`}
+            role="alert"
+          >
             {error}
           </p>
+        )}
+
+        {isFailed && (
+          <button
+            type="button"
+            onClick={retry}
+            className="shrink-0 rounded-full border border-red-500/40 px-3 py-1 text-xs text-red-300 transition hover:border-red-400 hover:text-red-200 active:scale-[0.97]"
+          >
+            重试
+          </button>
+        )}
+
+        {relayed && !isFailed && (
+          <span
+            className="hidden shrink-0 rounded-full border border-line px-2 py-0.5 text-[10px] text-ink-muted sm:inline"
+            title="该电台只有 HTTP 流，已通过服务端中转播放"
+          >
+            中转
+          </span>
         )}
 
         <div className="flex shrink-0 items-center gap-3">

@@ -138,6 +138,7 @@ export function AtlasExplorer({ initialStations, countries, children }: AtlasExp
         bitrate: marker.bitrate,
         hls: marker.hls,
         tags: marker.tags,
+        favicon: marker.favicon,
       });
     },
     [play],

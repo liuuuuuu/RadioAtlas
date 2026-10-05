@@ -4,7 +4,7 @@
 
 ![RadioAtlas 首页](docs/screenshot.png)
 
-> 状态：`v0.3` — 数据层、播放内核、可旋转地球仪、广东专区与交互体系已完成。
+> 状态：`v0.4` — 数据层、播放内核、可旋转地球仪、广东专区、交互体系与流代理已完成。
 
 ---
 
@@ -91,6 +91,35 @@ RadioAtlas 把它们收敛成一颗**可以拖着转的地球**：国家按电�
 广东专区因此合并 `Kwangtung` + `Guangdong` 去重，再按站名归类到 21 个城市。
 空 state 的 435 条无法回收 —— 拉取全国需要 54s。
 
+### 关键约束五：71% 的头部电台只有 HTTP 流
+
+HTTPS 页面**无法加载** `http://` 音频（混合内容）。实测目录里最受欢迎的一批电台：
+
+| 范围 | HTTP-only 占比 |
+| --- | --- |
+| 全球 Top 300（按票数） | **71%** |
+| 广东（Kwangtung） | 34% |
+
+BBC World Service、Radio Paradise、France Info 全在名单里 —— 不做中转，这些台根本播不了。
+所以新增 `/api/stream` 做音频中转，并且**刻意不做成通用代理**：
+
+1. **必须带目录内的 `stationuuid`** —— 服务端反查真实地址，用户无法指定任意 URL。
+2. **SSRF 防护** —— 拦截回环、私网、链路本地、CGNAT、组播，以及云元数据地址
+   （`169.254.169.254`）；主机名也会解析后校验，防止「公网域名指向内网」。
+3. **HLS 必须重写播放列表** —— m3u8 本身不是音频，它指向更多 URL。
+   只代理清单的话，分片请求仍然指向 HTTP，照样被拦。所以清单里的每个 URL
+   （含 `#EXT-X-KEY` / `#EXT-X-MAP` 的 `URI=` 属性）都会被改写回代理。
+
+> 中转会消耗服务器带宽，这是它的主要成本。设 `NEXT_PUBLIC_STREAM_PROXY=0` 可整体关闭，
+> 届时 HTTP 电台会被标记为不可播。
+
+### 播放健壮性
+
+- **失败自动重试**：直播流会掉线，指数退避重连 2 次（450ms → 900ms），
+  期间播放条显示「连接失败，正在重试（1/2）…」；仍失败才报错并给出「重试」按钮。
+- **MediaSession**：锁屏 / 耳机 / 系统媒体面板可控制播放暂停，并显示电台名、国家与台标。
+- 上游只有**握手阶段**有超时，重试针对的是连接建立失败，不是长连接本身。
+
 ---
 
 ## 3. 架构与数据流
@@ -168,6 +197,7 @@ AudioPlayerProvider ──► .m3u8 ? hls.js : <audio src>
 │   │   └── api/
 │   │       ├── stations/route.ts   # 检索代理 + TTL 缓存 + 参数校验
 │   │       ├── map/route.ts        # 光点（全局 / 按国家两档），下发经纬度
+│   │       ├── stream/route.ts     # 音频中转（SSRF 防护 + HLS 重写）
 │   │       ├── countries/route.ts  # 国家列表
 │   │       ├── tags/route.ts       # 流派标签
 │   │       └── click/route.ts      # 播放点击回传
@@ -192,6 +222,9 @@ AudioPlayerProvider ──► .m3u8 ? hls.js : <audio src>
 │       │   ├── countries.ts        # 台数 join
 │       │   └── types.ts
 │       ├── audio/hls-loader.ts
+│       ├── stream/
+│       │   ├── guard.ts            # SSRF 防护（私网/元数据地址拦截）
+│       │   └── playlist.ts         # HLS 清单重写
 │       └── format.ts
 ├── vitest.config.mts / vitest.setup.ts
 └── next.config.ts / postcss.config.mjs / eslint.config.mjs / tsconfig.json
@@ -233,6 +266,23 @@ AudioPlayerProvider ──► .m3u8 ? hls.js : <audio src>
 
 回传播放，保持目录排名可信。始终 `204`，失败静默。
 
+### `GET /api/stream?uuid=<stationuuid>[&u=<absolute-url>]`
+
+音频中转，用于播放只有 `http://` 的电台（见「关键约束五」）。
+
+- 不带 `u`：按 `uuid` 反查目录中的流地址并中转；HLS 清单会被重写。
+- 带 `u`：HLS 的子资源（分片、密钥、init 段），仍会经过 SSRF 校验。
+
+| 状态 | 含义 |
+| --- | --- |
+| `200` | 直连流原样透传（`no-store`），或返回重写后的 m3u8 |
+| `400` | uuid 非法 / `u` 不是绝对 http(s) URL |
+| `403` | 目标地址命中内网拦截 |
+| `404` | 目录中查不到该 uuid |
+| `502` | 上游不可达或返回错误状态 |
+
+上游**只有握手阶段有 12s 超时** —— 直播流是长连接，不能给整个响应设超时。
+
 ---
 
 ## 6. 本地运行
@@ -251,6 +301,7 @@ npm run dev          # http://localhost:3000
 | `npm run dev` / `build` / `start` | 开发 / 生产构建 / 启动 |
 | `npm run geo:build` | 生成 `country-meta.json` 并复制 TopoJSON 到 `public/` |
 | `npm run verify:globe` | CDP 驱动真实鼠标，验证拖拽旋转 / 点击国家 / 自动旋转停止 |
+| `npm run verify:stream` | CDP 验证 HTTP-only 电台经中转可播放 |
 | `npm run typecheck` / `lint` / `test` | 类型 / 风格 / 单测 |
 | `npm run verify` | typecheck → lint → test → build |
 
@@ -261,19 +312,20 @@ npm run dev          # http://localhost:3000
 
 ## 7. 测试
 
-共 **113** 个用例，覆盖最容易悄悄坏掉的部分：
+共 **158** 个用例，覆盖最容易悄悄坏掉的部分：
 
 | 文件 | 覆盖内容 |
 | --- | --- |
+| `guard.test.ts` | SSRF 拦截：回环 / 私网 / 链路本地 / CGNAT / 组播 / IPv6 ULA / IPv4 映射地址、云元数据地址、解析到内网的公网域名、**解析结果含任一内网地址即拒** |
+| `playlist.test.ts` | HLS 重写：媒体清单与主清单的裸 URL、`URI="..."` 属性（密钥 / init 段）、相对路径解析、注释与空行保留、**不留任何裸上游 URL** |
 | `globe.test.ts` | 经度归一化边界（±180/±540）、拖拽方向、缩放平移、跨换日线取短路、缓动插值端点、惯性衰减 |
-| `regions.test.ts` | 广东 27 个站名的城市归类、**`Kwangsi` 不得被当成广东**、最长关键词优先、只返回已知城市 |
-| `viewport` 相关 | （已随平面地图移除） |
+| `regions.test.ts` | 广东 27 个站名的城市归类、**`Kwangsi` 不得被当成广东**、最长关键词优先 |
 | `client.test.ts` | URL 拼接与空值丢弃、参数映射、UA 头、镜像回退、全失败抛 `RadioBrowserError` |
 | `cache.test.ts` | 存取、TTL 过期、单条 TTL、LRU 淘汰、重复写入刷新新近度 |
 | `queries.test.ts` | 默认排序必须是 `votes` 且不得走 `topclick` |
 | `density.test.ts` | 分档边界值、索引不越界、配色端点 |
 | `countries.test.ts` | 三方 join、数字 ISO 补零、空目录兜底 |
-| `format.test.ts` | 标签切分、`—` 兜底、数量缩写、流地址解析 |
+| `format.test.ts` | 标签切分、`—` 兜底、数量缩写、**HTTPS 直连 / HTTP 走中转** |
 | `hls-loader.test.ts` | `.m3u8`（含 query/hash、大小写）识别 |
 
 ```bash
@@ -294,23 +346,24 @@ selection : {"selected":"CA","chip":"加拿大1.5K 个电台","results":"共 60 
 ```
 
 需要先 `npm run dev`，且 Chrome 监听 9222 调试端口。
+`verify:stream` 需要额外加 `--autoplay-policy=no-user-gesture-required`。
 
 ---
 
 ## 8. 路线图
 
-**v0.4 — 播放健壮性**
-- 可选流代理，解锁 HTTP-only 电台
-- 失败自动重试 + 同国家备选台推荐
-- MediaSession API（锁屏 / 耳机控制）
-
 **v0.5 — 内容深度**
-- 电台详情页（`/station/[uuid]`）+ 分享链接
 - 收藏与最近播放（localStorage）
+- 电台详情页（`/station/[uuid]`）+ 分享链接
 - 更多地区专区（复用 `regions.ts` 的别名表）
 
-**v0.6 — 可达性**
-- 地球仪键盘导航（当前依赖筛选栏里的国家下拉作为等价入口）
+**v0.6 — 播放体验**
+- 定时器 / 睡眠模式
+- 播放失败时推荐同国家备选台
+- 音质偏好（优先高码率）
+
+**v0.7 — 可达性**
+- 地球仪键盘导航（当前依赖筛选栏的国家下拉作为等价入口）
 - i18n（zh / en）
 
 ---

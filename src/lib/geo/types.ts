@@ -32,4 +32,6 @@ export interface StationMarker {
   codec: string;
   bitrate: number;
   tags: string;
+  /** Optional artwork for lock-screen controls. */
+  favicon?: string;
 }

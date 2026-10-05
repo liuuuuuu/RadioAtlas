@@ -28,6 +28,8 @@ export interface PlayableStation {
   hls: number;
   /** Comma-separated genre tags, e.g. "jazz,public radio". */
   tags: string;
+  /** Station logo, used as lock-screen artwork. Optional: not every source has one. */
+  favicon?: string;
 }
 
 export interface Station extends PlayableStation {

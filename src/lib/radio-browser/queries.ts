@@ -87,6 +87,17 @@ export function getStats(): Promise<RadioStats> {
   return radioFetch<RadioStats>("/json/stats", undefined, { revalidate: 60 });
 }
 
+/** Single station lookup, used by the stream proxy to resolve a uuid. */
+export async function getStationByUuid(stationuuid: string): Promise<Station | null> {
+  const stations = await radioFetch<Station[]>(
+    `/json/stations/byuuid/${stationuuid}`,
+    undefined,
+    { revalidate: 3600 },
+  );
+
+  return stations[0] ?? null;
+}
+
 /** Fire-and-forget play counter; failures must never affect playback. */
 export async function registerClick(stationuuid: string): Promise<void> {
   try {

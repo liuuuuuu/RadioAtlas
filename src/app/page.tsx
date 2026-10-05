@@ -1,5 +1,7 @@
 import { AtlasExplorer } from "@/components/AtlasExplorer";
-import { buildMapCountries, MAP_HEIGHT, MAP_WIDTH } from "@/lib/geo/countries";
+import { GuangdongSection } from "@/components/GuangdongSection";
+import { buildMapCountries } from "@/lib/geo/countries";
+import { getGuangdongStations, type GuangdongStation } from "@/lib/geo/guangdong";
 import type { MapCountry } from "@/lib/geo/types";
 import { formatCount } from "@/lib/format";
 import { getCountries, getStats, getTopStations } from "@/lib/radio-browser/queries";
@@ -8,31 +10,27 @@ import type { Country, RadioStats, Station } from "@/lib/radio-browser/types";
 export const revalidate = 300;
 
 export default async function HomePage() {
-  const [stations, stats, directory] = await Promise.all([
+  const [stations, stats, directory, guangdong] = await Promise.all([
     getTopStations(60).catch((): Station[] => []),
     getStats().catch((): RadioStats | null => null),
     getCountries().catch((): Country[] => []),
+    getGuangdongStations().catch((): GuangdongStation[] => []),
   ]);
 
-  // Outlines are ~125 KB, so they are resolved here and passed down as props
-  // rather than imported by the client component.
   const countries: MapCountry[] = buildMapCountries(directory);
 
   return (
-    <main className="mx-auto w-full max-w-7xl px-5 pb-16 pt-8">
+    <main className="mx-auto w-full max-w-7xl px-5 pb-20 pt-8">
       <SiteHeader stats={stats} />
 
       {stations.length === 0 ? (
-        <p className="rounded-xl border border-line bg-surface-1 p-6 text-sm text-ink-muted">
+        <p className="rounded-2xl border border-line bg-surface-1 p-6 text-sm text-ink-muted">
           暂时无法连接电台目录，请稍后刷新重试。
         </p>
       ) : (
-        <AtlasExplorer
-          initialStations={stations}
-          countries={countries}
-          mapWidth={MAP_WIDTH}
-          mapHeight={MAP_HEIGHT}
-        />
+        <AtlasExplorer initialStations={stations} countries={countries}>
+          <GuangdongSection stations={guangdong} />
+        </AtlasExplorer>
       )}
     </main>
   );
@@ -51,7 +49,7 @@ function SiteHeader({ stats }: { stats: RadioStats | null }) {
             世界电台，一个旋钮
           </h1>
           <p className="mt-3 max-w-xl text-sm leading-relaxed text-ink-muted">
-            在地图上选一个国家，即刻收听当地的直播电台。数据来自社区维护的开放电台目录。
+            转动地球，点一个国家，即刻收听当地的直播电台。数据来自社区维护的开放电台目录。
           </p>
         </div>
 

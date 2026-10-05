@@ -1,6 +1,6 @@
 {
   "name": "radioatlas",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "private": true,
   "description": "Explore and listen to live radio stations from around the world.",
   "homepage": "https://github.com/liuuuuuu/RadioAtlas",
@@ -17,7 +17,7 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "geo:build": "node scripts/build-geo-data.mjs",
-    "verify:map": "node scripts/verify-map-flow.mjs",
+    "verify:globe": "node scripts/verify-globe-flow.mjs",
     "verify": "npm run typecheck && npm run lint && npm run test && npm run build"
   },
   "dependencies": {

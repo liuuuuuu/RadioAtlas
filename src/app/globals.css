@@ -4,7 +4,9 @@
   --color-surface-0: #080a0e;
   --color-surface-1: #101319;
   --color-surface-2: #171b23;
+  --color-surface-3: #1e2430;
   --color-line: #232936;
+  --color-line-strong: #333c4e;
   --color-ink: #e8ecf3;
   --color-ink-muted: #97a1b3;
   --color-accent: #f0a828;
@@ -29,6 +31,37 @@
     background-color: var(--color-accent);
     color: #0b0d10;
   }
+
+  /*
+   * One focus treatment for the whole app. Previously nothing had a visible
+   * focus state, so keyboard users had no idea where they were.
+   */
+  :focus-visible {
+    outline: 2px solid var(--color-accent);
+    outline-offset: 2px;
+    border-radius: 6px;
+  }
+
+  button:not(:disabled),
+  [role="button"]:not([aria-disabled="true"]) {
+    cursor: pointer;
+  }
+
+  ::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+  }
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  ::-webkit-scrollbar-thumb {
+    background: var(--color-line);
+    border-radius: 999px;
+    border: 3px solid var(--color-surface-0);
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background: var(--color-line-strong);
+  }
 }
 
 @layer utilities {
@@ -39,16 +72,15 @@
 }
 
 /*
- * World map primitives.
- * Stroke widths are divided by the current zoom (published as --atlas-stroke on
- * the <svg>) so borders stay a constant on-screen thickness without React
- * having to rebuild the 177 country paths on every zoom step.
+ * Globe primitives.
+ * The SVG viewBox is fixed at 720 and the element is scaled by CSS, so stroke
+ * widths are already constant on screen — no zoom compensation needed.
  */
 @layer components {
   .atlas-country {
-    stroke: #2c3444;
-    stroke-width: calc(0.35 * var(--atlas-stroke, 1));
-    transition: stroke 120ms ease;
+    stroke: #2a3547;
+    stroke-width: 0.45;
+    transition: stroke 140ms ease;
   }
 
   .atlas-country[data-selectable="true"] {
@@ -57,22 +89,54 @@
 
   .atlas-country[data-hovered="true"] {
     stroke: #f5c56b;
-    stroke-width: calc(0.9 * var(--atlas-stroke, 1));
+    stroke-width: 1.1;
   }
 
   .atlas-country[data-selected="true"] {
     stroke: var(--color-accent);
-    stroke-width: calc(1.6 * var(--atlas-stroke, 1));
+    stroke-width: 1.8;
   }
 
   .atlas-marker {
     fill: var(--color-accent);
-    fill-opacity: 0.72;
+    fill-opacity: 0.78;
     cursor: pointer;
     transition: fill-opacity 120ms ease;
   }
 
   .atlas-marker:hover {
     fill-opacity: 1;
+  }
+
+  /* Playing indicator: three bars that pulse out of phase. */
+  .eq-bar {
+    animation: eq-pulse 900ms ease-in-out infinite;
+    transform-origin: bottom;
+  }
+  .eq-bar:nth-child(2) {
+    animation-delay: 150ms;
+  }
+  .eq-bar:nth-child(3) {
+    animation-delay: 300ms;
+  }
+}
+
+@keyframes eq-pulse {
+  0%,
+  100% {
+    transform: scaleY(0.35);
+  }
+  50% {
+    transform: scaleY(1);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
   }
 }

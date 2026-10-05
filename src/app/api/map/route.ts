@@ -1,7 +1,6 @@
 import { NextResponse } from "next/server";
 import { TtlCache } from "@/lib/radio-browser/cache";
 import { searchStations } from "@/lib/radio-browser/queries";
-import { projectToViewBox } from "@/lib/geo/projection";
 import type { StationMarker } from "@/lib/geo/types";
 
 export const revalidate = 3600;
@@ -65,17 +64,14 @@ export async function GET(request: Request) {
           return [];
         }
 
-        const [x, y] = projectToViewBox(station.geo_long, station.geo_lat);
-        if (!Number.isFinite(x) || !Number.isFinite(y)) return [];
-
         return [
           {
             uuid: station.stationuuid,
             name: station.name,
             country: station.country,
             countrycode: station.countrycode,
-            x: Math.round(x * 10) / 10,
-            y: Math.round(y * 10) / 10,
+            lon: Math.round(station.geo_long * 1000) / 1000,
+            lat: Math.round(station.geo_lat * 1000) / 1000,
             stream: station.url_resolved || station.url,
             hls: station.hls,
             codec: station.codec,

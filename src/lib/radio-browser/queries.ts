@@ -98,6 +98,21 @@ export async function getStationByUuid(stationuuid: string): Promise<Station | n
   return stations[0] ?? null;
 }
 
+/**
+ * Suggestions for a station detail page: same country, most-voted first.
+ * Over-fetches slightly so filtering out the station itself still fills the row.
+ */
+export async function getRelatedStations(station: Station, limit = 8): Promise<Station[]> {
+  if (!station.countrycode) return [];
+
+  const results = await searchStations({
+    countrycode: station.countrycode,
+    limit: limit + 4,
+  }).catch((): Station[] => []);
+
+  return results.filter((entry) => entry.stationuuid !== station.stationuuid).slice(0, limit);
+}
+
 /** Fire-and-forget play counter; failures must never affect playback. */
 export async function registerClick(stationuuid: string): Promise<void> {
   try {

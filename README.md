@@ -4,7 +4,7 @@
 
 ![RadioAtlas 首页](docs/screenshot.png)
 
-> 状态：`v0.5` — 数据层、播放内核、可旋转地球仪、广东专区、交互体系、流代理与个人电台库已完成。
+> 状态：`v0.6` — 数据层、播放内核、可旋转地球仪、广东专区、交互体系、流代理、个人电台库与电台详情页已完成。
 
 ---
 
@@ -140,6 +140,23 @@ BBC World Service、Radio Paradise、France Info 全在名单里 —— 不做�
 - 睡眠定时器：15/30/60/90 分钟，到点暂停播放。倒计时与到期判断都放在同一个
   `setInterval` 回调里，避免在 effect 体内同步 setState。
 
+### 电台详情页与分享
+
+`/station/[uuid]` 是可分享的落地页：完整信息（编码 / 码率 / 传输方式 / 在线状态 / 票数 / 点击）、
+播放与收藏、同国家的相关电台，以及用于社交预览的 Open Graph 元数据。
+
+几个实现要点：
+
+- **uuid 先校验再查目录**：路由是公开的，只有形如 uuid 的字符串才会打到上游 API。
+- **非法与不存在都走 404**：`/station/not-a-uuid` 与未知 uuid 均返回 404，
+  由品牌化的 `not-found.tsx` 承接。
+- **分享优先用 `navigator.share`，降级到剪贴板**。注意：用户取消分享面板时
+  `share()` 会抛 `AbortError`，这**不是失败**，不能顺着往下走复制逻辑。
+- 卡片上的「查看详情」入口是**卡片的兄弟节点**（和收藏星标并排）——
+  卡片本身已经是 `<button>`，不能再嵌套。
+- 网格用 **CSS 容器查询**而非视口断点：同一个 `StationGrid` 既用在 1280px 的主栏，
+  也用在 1024px 的详情栏，按视口分列会把窄栏里的台名挤成省略号。
+
 ---
 
 ## 3. 架构与数据流
@@ -213,6 +230,8 @@ AudioPlayerProvider ──► .m3u8 ? hls.js : <audio src>
 │   ├── app/
 │   │   ├── layout.tsx              # 全局播放器 Provider + PlayerBar
 │   │   ├── page.tsx                # SSR 首页
+│   │   ├── not-found.tsx           # 品牌化 404
+│   │   ├── station/[uuid]/page.tsx # 电台详情页（含 OG 元数据）
 │   │   ├── globals.css             # @theme + 焦点环 + 地球 SVG 原语
 │   │   └── api/
 │   │       ├── stations/route.ts   # 检索代理 + TTL 缓存 + 参数校验
@@ -224,7 +243,9 @@ AudioPlayerProvider ──► .m3u8 ? hls.js : <audio src>
 │   ├── components/
 │   │   ├── AtlasExplorer.tsx       # 客户端总控：地球 + 筛选 + 全球列表
 │   │   ├── LibrarySection.tsx      # 我的电台（收藏 / 最近播放）
-│   │   ├── FavoriteButton.tsx      # 收藏星标（卡片的兄弟节点）
+│   │   ├── FavoriteButton.tsx      # 收藏星标 / 胶囊按钮（卡片的兄弟节点）
+│   │   ├── ShareButton.tsx         # 分享（Web Share → 剪贴板降级）
+│   │   ├── StationDetail.tsx       # 详情页主体
 │   │   ├── GuangdongSection.tsx    # 广东专区（城市 chips）
 │   │   ├── map/WorldGlobe.tsx      # 可旋转地球仪
 │   │   ├── ui/Select.tsx           # 自绘 listbox（ARIA combobox 模式）
@@ -287,6 +308,13 @@ AudioPlayerProvider ──► .m3u8 ? hls.js : <audio src>
 
 参考数据，`s-maxage=3600`。
 
+### 页面路由
+
+| 路由 | 说明 |
+| --- | --- |
+| `/` | 地球仪 + 我的电台 + 广东专区 + 全球探索 |
+| `/station/[uuid]` | 电台详情页，含 OG 元数据；uuid 非法或不存在均 404 |
+
 ### `POST /api/click?uuid=<stationuuid>`
 
 回传播放，保持目录排名可信。始终 `204`，失败静默。
@@ -328,6 +356,7 @@ npm run dev          # http://localhost:3000
 | `npm run verify:globe` | CDP 驱动真实鼠标，验证拖拽旋转 / 点击国家 / 自动旋转停止 |
 | `npm run verify:stream` | CDP 验证 HTTP-only 电台经中转可播放 |
 | `npm run verify:library` | CDP 验证收藏 / 最近播放刷新后仍保留，及睡眠定时器 |
+| `npm run verify:routes` | 路由冒烟：首页 / 详情页 / 404 的状态码、标题与 OG 标签 |
 | `npm run typecheck` / `lint` / `test` | 类型 / 风格 / 单测 |
 | `npm run verify` | typecheck → lint → test → build |
 
@@ -375,21 +404,37 @@ selection : {"selected":"CA","chip":"加拿大1.5K 个电台","results":"共 60 
 需要先 `npm run dev`，且 Chrome 监听 9222 调试端口。
 `verify:stream` 需要额外加 `--autoplay-policy=no-user-gesture-required`。
 
+### 路由冒烟
+
+`npm run verify:routes` 不需要浏览器，直接打 HTTP，覆盖最容易静默坏掉的东西：
+页面标题、社交预览的 OG 标签、以及两个 404 边界（uuid 非法 / uuid 不存在）。
+
+```
+GET /station/9617a958…
+  [PASS] 200
+  [PASS] title is the station name
+  [PASS] has an og:title
+  [PASS] declares a radio station
+  [PASS] lists related stations
+GET /station/<malformed>   [PASS] 404
+GET /station/<unknown>     [PASS] 404
+```
+
 ---
 
 ## 8. 路线图
 
-**v0.6 — 内容深度**
-- 电台详情页（`/station/[uuid]`）+ 分享链接
+**v0.7 — 内容深度**
 - 更多地区专区（复用 `regions.ts` 的别名表）
 - 收藏导入 / 导出
+- 详情页展示地理坐标与地图小图
 
-**v0.7 — 播放体验**
+**v0.8 — 播放体验**
 - 播放失败时推荐同国家备选台
 - 音质偏好（优先高码率）
 - 定时唤醒 / 闹钟
 
-**v0.8 — 可达性**
+**v0.9 — 可达性**
 - 地球仪键盘导航（当前依赖筛选栏的国家下拉作为等价入口）
 - i18n（zh / en）
 

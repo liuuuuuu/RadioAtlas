@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import { FavoriteButton } from "./FavoriteButton";
 import { useAudioPlayer } from "@/components/player/AudioPlayerProvider";
 import { formatBitrate, formatCodec, formatCount, isInsecureStream, parseTags } from "@/lib/format";
@@ -104,7 +105,7 @@ export function StationCard({
             </span>
           </span>
 
-          <span className="min-w-0 flex-1 pr-7">
+          <span className="min-w-0 flex-1 pr-16">
             <span className="block truncate text-sm font-medium leading-snug">{station.name}</span>
             <span className="mt-0.5 block truncate text-xs text-ink-muted">
               {location || "未知地区"}
@@ -137,7 +138,21 @@ export function StationCard({
         )}
       </button>
 
-      <FavoriteButton station={station} className="absolute right-2.5 top-2.5 z-10" />
+      {/* Siblings of the card button, not children: buttons cannot nest. */}
+      <div className="absolute right-2.5 top-2.5 z-10 flex items-center gap-0.5">
+        <Link
+          href={`/station/${station.stationuuid}`}
+          aria-label={`查看 ${station.name} 的详情`}
+          title="查看详情"
+          className="flex size-7 items-center justify-center rounded-lg text-ink-muted/45 transition hover:bg-surface-3 hover:text-ink active:scale-90"
+        >
+          <svg viewBox="0 0 24 24" aria-hidden="true" className="size-4 fill-current">
+            <path d="M12 5C7 5 2.7 8.1 1 12c1.7 3.9 6 7 11 7s9.3-3.1 11-7c-1.7-3.9-6-7-11-7zm0 12c-3.7 0-7-2.1-8.6-5C5 9.1 8.3 7 12 7s7 2.1 8.6 5c-1.6 2.9-4.9 5-8.6 5z" />
+            <path d="M12 8.5a3.5 3.5 0 1 0 0 7 3.5 3.5 0 0 0 0-7zm0 5.5a2 2 0 1 1 0-4 2 2 0 0 1 0 4z" />
+          </svg>
+        </Link>
+        <FavoriteButton station={station} />
+      </div>
     </div>
   );
 }

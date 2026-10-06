@@ -13,13 +13,18 @@ export function StationGrid({
   subtitleFor?: (station: CardStation) => string;
 }) {
   return (
-    <ul className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-      {stations.map((station) => (
-        <li key={station.stationuuid}>
-          <StationCard station={station} subtitle={subtitleFor?.(station)} />
-        </li>
-      ))}
-    </ul>
+    // Container query rather than viewport breakpoints: this grid is reused in a
+    // 1280px main column and a 1024px detail column, and viewport-based columns
+    // squeezed card titles into ellipses on the narrower one.
+    <div className="@container">
+      <ul className="grid grid-cols-1 gap-3 @md:grid-cols-2 @3xl:grid-cols-3 @5xl:grid-cols-4">
+        {stations.map((station) => (
+          <li key={station.stationuuid}>
+            <StationCard station={station} subtitle={subtitleFor?.(station)} />
+          </li>
+        ))}
+      </ul>
+    </div>
   );
 }
 

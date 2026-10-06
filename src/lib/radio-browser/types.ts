@@ -32,6 +32,16 @@ export interface PlayableStation {
   favicon?: string;
 }
 
+/**
+ * The subset a station card renders.
+ * Both `Station` (from the API) and `SavedStation` (from the local library)
+ * satisfy it, so the same card works for search results and favourites.
+ */
+export interface CardStation extends PlayableStation {
+  state?: string;
+  votes?: number;
+}
+
 export interface Station extends PlayableStation {
   homepage: string;
   favicon: string;

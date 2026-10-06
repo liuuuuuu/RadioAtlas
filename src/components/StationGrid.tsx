@@ -2,15 +2,15 @@
 
 import { useState } from "react";
 import { StationCard } from "./StationCard";
-import type { Station } from "@/lib/radio-browser/types";
+import type { CardStation } from "@/lib/radio-browser/types";
 
 export function StationGrid({
   stations,
   subtitleFor,
 }: {
-  stations: Station[];
+  stations: CardStation[];
   /** Optional per-station subtitle override. */
-  subtitleFor?: (station: Station) => string;
+  subtitleFor?: (station: CardStation) => string;
 }) {
   return (
     <ul className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
@@ -24,12 +24,12 @@ export function StationGrid({
 }
 
 export interface CollapsibleStationGridProps {
-  stations: Station[];
+  stations: CardStation[];
   /** How many to show before the expander. */
   initial?: number;
   /** How many more each press reveals. */
   step?: number;
-  subtitleFor?: (station: Station) => string;
+  subtitleFor?: (station: CardStation) => string;
 }
 
 /**

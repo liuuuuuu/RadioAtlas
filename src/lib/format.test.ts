@@ -3,6 +3,7 @@ import {
   formatBitrate,
   formatCodec,
   formatCount,
+  formatCountdown,
   isInsecureStream,
   isRelayed,
   parseTags,
@@ -68,6 +69,25 @@ describe("formatters", () => {
     expect(formatCount(999)).toBe("999");
     expect(formatCount(60_228)).toBe("60.2K");
     expect(formatCount(1_500_000)).toBe("1.5M");
+  });
+});
+
+describe("formatCountdown", () => {
+  it("renders mm:ss", () => {
+    expect(formatCountdown(0)).toBe("0:00");
+    expect(formatCountdown(1000)).toBe("0:01");
+    expect(formatCountdown(59_000)).toBe("0:59");
+    expect(formatCountdown(60_000)).toBe("1:00");
+    expect(formatCountdown(90_000)).toBe("1:30");
+    expect(formatCountdown(90 * 60_000)).toBe("90:00");
+  });
+
+  it("rounds partial seconds up so the timer never shows 0:00 while running", () => {
+    expect(formatCountdown(400)).toBe("0:01");
+  });
+
+  it("never goes negative", () => {
+    expect(formatCountdown(-5000)).toBe("0:00");
   });
 });
 

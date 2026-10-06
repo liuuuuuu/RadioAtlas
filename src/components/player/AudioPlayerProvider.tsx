@@ -17,6 +17,7 @@ import {
   type HlsHandle,
 } from "@/lib/audio/hls-loader";
 import { playbackUrl } from "@/lib/format";
+import { recordRecent } from "@/lib/library/client";
 import type { PlayableStation } from "@/lib/radio-browser/types";
 
 export type PlaybackStatus = "idle" | "loading" | "playing" | "paused" | "error";
@@ -27,12 +28,16 @@ export interface AudioPlayerValue {
   error: string | null;
   volume: number;
   muted: boolean;
+  /** Milliseconds left on the sleep timer, or null when it is off. */
+  sleepRemainingMs: number | null;
   play: (station: PlayableStation) => void;
   toggle: () => void;
   stop: () => void;
   retry: () => void;
   setVolume: (volume: number) => void;
   toggleMute: () => void;
+  /** Minutes from now, or null to cancel. */
+  setSleepTimer: (minutes: number | null) => void;
 }
 
 /** Live streams drop out; two quick reconnects fix most of it. */
@@ -67,6 +72,8 @@ export function AudioPlayerProvider({ children }: { children: ReactNode }) {
   const [error, setError] = useState<string | null>(null);
   const [volume, setVolumeState] = useState(0.8);
   const [muted, setMuted] = useState(false);
+  const [sleepEndsAt, setSleepEndsAt] = useState<number | null>(null);
+  const [clock, setClock] = useState(() => Date.now());
 
   /** Breaks the startPlayback <-> handleFailure cycle without writing refs in render. */
   const failureRef = useRef<(cause?: unknown) => void>(() => undefined);
@@ -206,6 +213,7 @@ export function AudioPlayerProvider({ children }: { children: ReactNode }) {
       retryRef.current = { uuid: next.stationuuid, count: 0 };
       setStation(next);
       setError(null);
+      recordRecent(next);
       void startPlayback(next);
     },
     [startPlayback],
@@ -260,6 +268,38 @@ export function AudioPlayerProvider({ children }: { children: ReactNode }) {
       return next;
     });
   }, []);
+
+  const setSleepTimer = useCallback((minutes: number | null) => {
+    if (minutes === null) {
+      setSleepEndsAt(null);
+      return;
+    }
+    setClock(Date.now());
+    setSleepEndsAt(Date.now() + minutes * 60_000);
+  }, []);
+
+  /**
+   * One interval drives both the countdown and expiry. Every setState happens
+   * inside the timer callback rather than in the effect body, which keeps React
+   * from scheduling a cascading render on mount.
+   */
+  useEffect(() => {
+    if (sleepEndsAt === null) return;
+
+    const id = setInterval(() => {
+      const now = Date.now();
+      if (now >= sleepEndsAt) {
+        setSleepEndsAt(null);
+        audioRef.current?.pause();
+      } else {
+        setClock(now);
+      }
+    }, 1000);
+
+    return () => clearInterval(id);
+  }, [sleepEndsAt]);
+
+  const sleepRemainingMs = sleepEndsAt === null ? null : Math.max(0, sleepEndsAt - clock);
 
   // Lock-screen / headphone controls.
   useEffect(() => {
@@ -317,14 +357,30 @@ export function AudioPlayerProvider({ children }: { children: ReactNode }) {
       error,
       volume,
       muted,
+      sleepRemainingMs,
       play,
       toggle,
       stop,
       retry,
       setVolume,
       toggleMute,
+      setSleepTimer,
     }),
-    [station, status, error, volume, muted, play, toggle, stop, retry, setVolume, toggleMute],
+    [
+      station,
+      status,
+      error,
+      volume,
+      muted,
+      sleepRemainingMs,
+      play,
+      toggle,
+      stop,
+      retry,
+      setVolume,
+      toggleMute,
+      setSleepTimer,
+    ],
   );
 
   return <AudioPlayerContext.Provider value={value}>{children}</AudioPlayerContext.Provider>;

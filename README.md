@@ -4,7 +4,7 @@
 
 ![RadioAtlas 首页](docs/screenshot.png)
 
-> 状态：`v0.4` — 数据层、播放内核、可旋转地球仪、广东专区、交互体系与流代理已完成。
+> 状态：`v0.5` — 数据层、播放内核、可旋转地球仪、广东专区、交互体系、流代理与个人电台库已完成。
 
 ---
 
@@ -120,6 +120,26 @@ BBC World Service、Radio Paradise、France Info 全在名单里 —— 不做�
 - **MediaSession**：锁屏 / 耳机 / 系统媒体面板可控制播放暂停，并显示电台名、国家与台标。
 - 上游只有**握手阶段**有超时，重试针对的是连接建立失败，不是长连接本身。
 
+### 个人电台库
+
+收藏与最近播放存在 `localStorage`，无需登录。
+
+用 `useSyncExternalStore` 而不是「在 effect 里读 localStorage 再 setState」，一次解决三件事：
+
+1. **不水合错位** —— 服务端没有 storage，React 首屏用 `getServerSnapshot` 渲染空库，
+   水合完成后才换成真实数据。
+2. **跨标签页同步** —— 监听 `storage` 事件即可，不需要额外的广播机制。
+3. **不触发级联渲染** —— 没有 effect 里的同步 setState。
+
+其它实现要点：
+
+- **`parseLibrary` 把 localStorage 当不可信输入**：JSON 解析失败、字段缺失、
+  类型不对、重复 uuid、超长列表全部兜底，损坏的数据不会让页面白屏。
+- 收藏上限 500、最近播放 30，超出按时间淘汰。
+- 收藏按钮是卡片的**兄弟节点**而非子节点 —— 卡片本身是 `<button>`，按钮不能嵌套。
+- 睡眠定时器：15/30/60/90 分钟，到点暂停播放。倒计时与到期判断都放在同一个
+  `setInterval` 回调里，避免在 effect 体内同步 setState。
+
 ---
 
 ## 3. 架构与数据流
@@ -203,16 +223,21 @@ AudioPlayerProvider ──► .m3u8 ? hls.js : <audio src>
 │   │       └── click/route.ts      # 播放点击回传
 │   ├── components/
 │   │   ├── AtlasExplorer.tsx       # 客户端总控：地球 + 筛选 + 全球列表
+│   │   ├── LibrarySection.tsx      # 我的电台（收藏 / 最近播放）
+│   │   ├── FavoriteButton.tsx      # 收藏星标（卡片的兄弟节点）
 │   │   ├── GuangdongSection.tsx    # 广东专区（城市 chips）
 │   │   ├── map/WorldGlobe.tsx      # 可旋转地球仪
 │   │   ├── ui/Select.tsx           # 自绘 listbox（ARIA combobox 模式）
 │   │   ├── ui/Toggle.tsx           # 自绘 switch
-│   │   ├── player/                 # AudioPlayerProvider + PlayerBar
+│   │   ├── player/                 # AudioPlayerProvider + PlayerBar（含睡眠定时）
 │   │   ├── StationCard.tsx         # 电台卡片
 │   │   └── StationGrid.tsx         # 网格 + 折叠展开
 │   ├── hooks/useStations.ts
 │   └── lib/
 │       ├── radio-browser/          # types / client / cache / queries
+│       ├── library/
+│       │   ├── store.ts            # 纯逻辑：收藏/最近播放 + 防御式解析
+│       │   └── client.ts           # localStorage + useSyncExternalStore
 │       ├── geo/
 │       │   ├── country-meta.json   # 数字 ISO → alpha-2 + 中文名（生成物）
 │       │   ├── globe.ts            # 旋转/缩放/动画纯函数
@@ -302,6 +327,7 @@ npm run dev          # http://localhost:3000
 | `npm run geo:build` | 生成 `country-meta.json` 并复制 TopoJSON 到 `public/` |
 | `npm run verify:globe` | CDP 驱动真实鼠标，验证拖拽旋转 / 点击国家 / 自动旋转停止 |
 | `npm run verify:stream` | CDP 验证 HTTP-only 电台经中转可播放 |
+| `npm run verify:library` | CDP 验证收藏 / 最近播放刷新后仍保留，及睡眠定时器 |
 | `npm run typecheck` / `lint` / `test` | 类型 / 风格 / 单测 |
 | `npm run verify` | typecheck → lint → test → build |
 
@@ -312,10 +338,11 @@ npm run dev          # http://localhost:3000
 
 ## 7. 测试
 
-共 **158** 个用例，覆盖最容易悄悄坏掉的部分：
+共 **187** 个用例，覆盖最容易悄悄坏掉的部分：
 
 | 文件 | 覆盖内容 |
 | --- | --- |
+| `library/store.test.ts` | 收藏增删、最近播放去重与置顶、上限淘汰、**localStorage 损坏数据的 8 种兜底**（非 JSON / 非对象 / 缺字段 / 类型错 / 重复 uuid / 超长 / 非数组）、旧版本字段回填 |
 | `guard.test.ts` | SSRF 拦截：回环 / 私网 / 链路本地 / CGNAT / 组播 / IPv6 ULA / IPv4 映射地址、云元数据地址、解析到内网的公网域名、**解析结果含任一内网地址即拒** |
 | `playlist.test.ts` | HLS 重写：媒体清单与主清单的裸 URL、`URI="..."` 属性（密钥 / init 段）、相对路径解析、注释与空行保留、**不留任何裸上游 URL** |
 | `globe.test.ts` | 经度归一化边界（±180/±540）、拖拽方向、缩放平移、跨换日线取短路、缓动插值端点、惯性衰减 |
@@ -325,7 +352,7 @@ npm run dev          # http://localhost:3000
 | `queries.test.ts` | 默认排序必须是 `votes` 且不得走 `topclick` |
 | `density.test.ts` | 分档边界值、索引不越界、配色端点 |
 | `countries.test.ts` | 三方 join、数字 ISO 补零、空目录兜底 |
-| `format.test.ts` | 标签切分、`—` 兜底、数量缩写、**HTTPS 直连 / HTTP 走中转** |
+| `format.test.ts` | 标签切分、`—` 兜底、数量缩写、倒计时 mm:ss、**HTTPS 直连 / HTTP 走中转** |
 | `hls-loader.test.ts` | `.m3u8`（含 query/hash、大小写）识别 |
 
 ```bash
@@ -352,17 +379,17 @@ selection : {"selected":"CA","chip":"加拿大1.5K 个电台","results":"共 60 
 
 ## 8. 路线图
 
-**v0.5 — 内容深度**
-- 收藏与最近播放（localStorage）
+**v0.6 — 内容深度**
 - 电台详情页（`/station/[uuid]`）+ 分享链接
 - 更多地区专区（复用 `regions.ts` 的别名表）
+- 收藏导入 / 导出
 
-**v0.6 — 播放体验**
-- 定时器 / 睡眠模式
+**v0.7 — 播放体验**
 - 播放失败时推荐同国家备选台
 - 音质偏好（优先高码率）
+- 定时唤醒 / 闹钟
 
-**v0.7 — 可达性**
+**v0.8 — 可达性**
 - 地球仪键盘导航（当前依赖筛选栏的国家下拉作为等价入口）
 - i18n（zh / en）
 

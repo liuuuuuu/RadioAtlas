@@ -1,5 +1,6 @@
 import { AtlasExplorer } from "@/components/AtlasExplorer";
 import { GuangdongSection } from "@/components/GuangdongSection";
+import { LibrarySection } from "@/components/LibrarySection";
 import { buildMapCountries } from "@/lib/geo/countries";
 import { getGuangdongStations, type GuangdongStation } from "@/lib/geo/guangdong";
 import type { MapCountry } from "@/lib/geo/types";
@@ -29,6 +30,8 @@ export default async function HomePage() {
         </p>
       ) : (
         <AtlasExplorer initialStations={stations} countries={countries}>
+          {/* Favourites first for returning visitors; renders nothing when empty. */}
+          <LibrarySection />
           <GuangdongSection stations={guangdong} />
         </AtlasExplorer>
       )}

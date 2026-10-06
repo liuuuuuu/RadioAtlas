@@ -19,9 +19,18 @@ export function formatCodec(codec: string): string {
 }
 
 export function formatCount(value: number): string {
+  if (!Number.isFinite(value) || value < 0) return "0";
   if (value >= 1_000_000) return `${(value / 1_000_000).toFixed(1)}M`;
   if (value >= 1_000) return `${(value / 1_000).toFixed(1)}K`;
-  return String(value);
+  return String(Math.round(value));
+}
+
+/** mm:ss for a countdown; never negative. */
+export function formatCountdown(ms: number): string {
+  const total = Math.max(0, Math.ceil(ms / 1000));
+  const minutes = Math.floor(total / 60);
+  const seconds = total % 60;
+  return `${minutes}:${String(seconds).padStart(2, "0")}`;
 }
 
 /**
